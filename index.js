@@ -5,7 +5,7 @@ import cors from "cors";
 import { connectDB } from "./dbConnect.js";
 import userRouter from "./routes/user.js";
 
-const port = 3001;
+const port = 9000;
 
 const app = express();
 const server = http.createServer(app);
