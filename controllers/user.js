@@ -83,19 +83,18 @@ export const initiateSignup = async (req, res) => {
 
     await newUser.save();
 
-    // Send OTP
-    // await axios.post(
-    //   "https://www.fast2sms.com/dev/bulkV2",
-    //   {
-    //     route: "q",
-    //     message: `Your OTP for signup is: ${otp}`,
-    //     language: "english",
-    //     numbers: mobileNumber,
-    //   },
-    //   {
-    //     headers: { Authorization: FAST2SMS_API_KEY },
-    //   }
-    // );
+    await axios.post(
+      "https://www.fast2sms.com/dev/bulkV2",
+      {
+        route: "q",
+        message: `Your OTP for signup is: ${otp}`,
+        language: "english",
+        numbers: mobileNumber,
+      },
+      {
+        headers: { Authorization: FAST2SMS_API_KEY },
+      }
+    );
 
     res.status(200).json({ message: "OTP sent. Please verify.", otp: otp });
   } catch (error) {
