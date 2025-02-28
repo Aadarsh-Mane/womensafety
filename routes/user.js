@@ -3,6 +3,7 @@ import {
   completeSignup,
   initiateSignup,
   setPin,
+  signin,
   verifyOtp,
 } from "../controllers/user.js";
 
@@ -29,6 +30,11 @@ userRouter.post(
   "/completeSignup",
 
   completeSignup
+);
+userRouter.post(
+  "/signin",
+
+  signin
 );
 
 export default userRouter;

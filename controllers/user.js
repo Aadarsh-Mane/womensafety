@@ -1,6 +1,7 @@
 import axios from "axios";
 import bcrypt from "bcrypt";
 import User from "../models/users.js";
+import jwt from "jsonwebtoken";
 const JWT_SECRET = "vithuSafety";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
@@ -163,8 +164,8 @@ export const completeSignup = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user._id,
-        userType: user.userType || "user", // default to "user" if not set
         userName: user.name,
+        mobileNumber: user.mobileNumber,
       },
       JWT_SECRET,
       { expiresIn: "30d" }
@@ -178,10 +179,10 @@ export const completeSignup = async (req, res) => {
 };
 
 export const signin = async (req, res) => {
-  const { email, pin } = req.body;
+  const { mobileNumber, pin } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ mobileNumber });
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -195,8 +196,8 @@ export const signin = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user._id,
-        userType: user.userType || "user",
         userName: user.name,
+        mobileNumber: user.mobileNumber,
       },
       JWT_SECRET,
       { expiresIn: "30d" }
