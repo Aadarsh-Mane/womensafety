@@ -1,7 +1,7 @@
 import axios from "axios";
 import bcrypt from "bcrypt";
 import User from "../models/users.js";
-
+const JWT_SECRET = "vithuSafety";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
 
@@ -72,7 +72,7 @@ export const initiateSignup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiration = new Date(Date.now() + 10 * 60 * 1000);
-
+    console.log("otp is " + otp);
     const newUser = new User({
       email,
       mobileNumber,
@@ -86,7 +86,7 @@ export const initiateSignup = async (req, res) => {
     await axios.post(
       "https://www.fast2sms.com/dev/bulkV2",
       {
-        route: "otp",
+        route: "q",
         message: `Your OTP for signup is: ${otp}`,
         language: "english",
         numbers: mobileNumber,
@@ -160,10 +160,60 @@ export const completeSignup = async (req, res) => {
     user.name = name;
     user.dob = dob;
     await user.save();
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        userType: user.userType || "user", // default to "user" if not set
+        userName: user.name,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
 
-    res.status(200).json({ message: "Signup completed successfully." });
+    res.status(200).json({ message: "Signup completed successfully.", token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to complete signup." });
+  }
+};
+
+export const signin = async (req, res) => {
+  const { email, pin } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const isPinValid = await bcrypt.compare(pin, user.pin);
+    if (!isPinValid) {
+      return res.status(400).json({ message: "Invalid PIN." });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        userType: user.userType || "user",
+        userName: user.name,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    res.status(200).json({
+      message: "Sign-in successful.",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        mobileNumber: user.mobileNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Sign-in error:", error.message);
+    res.status(500).json({ message: "Sign-in failed." });
   }
 };
