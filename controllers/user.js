@@ -2,6 +2,8 @@ import axios from "axios";
 import bcrypt from "bcrypt";
 import User from "../models/users.js";
 import jwt from "jsonwebtoken";
+import { Readable } from "stream";
+import cloudinary from "../helpers/cloudinary.js";
 const JWT_SECRET = "vithuSafety";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
@@ -215,5 +217,75 @@ export const signin = async (req, res) => {
   } catch (error) {
     console.error("Sign-in error:", error.message);
     res.status(500).json({ message: "Sign-in failed." });
+  }
+};
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const user = await User.findById(userId).select("-password -otp");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export const updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { name, dob, email, mobileNumber, pin } = req.body;
+    const itemImage = req.file;
+
+    let imageUrl;
+
+    // Handle image upload to Cloudinary
+    if (itemImage) {
+      const bufferStream = new Readable();
+      bufferStream.push(itemImage.buffer);
+      bufferStream.push(null);
+
+      imageUrl = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.v2.uploader.upload_stream(
+          { folder: "user_profiles" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result.secure_url);
+          }
+        );
+        bufferStream.pipe(uploadStream);
+      });
+    }
+
+    // Build the update object dynamically
+    const updatedData = {};
+    if (name) updatedData.name = name;
+    if (dob) updatedData.dob = dob;
+    if (email) updatedData.email = email;
+    if (mobileNumber) updatedData.mobileNumber = mobileNumber;
+    if (pin) updatedData.pin = pin;
+    if (imageUrl) updatedData.profileImage = imageUrl;
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {
+      new: true,
+      runValidators: true,
+    }).select("-password -otp");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

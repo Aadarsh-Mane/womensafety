@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    profileImage: { type: String },
     mobileNumber: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     pin: { type: String },

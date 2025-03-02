@@ -1,12 +1,15 @@
 import express from "express";
 import {
   completeSignup,
+  getUserProfile,
   initiateSignup,
   setPin,
   signin,
+  updateUserProfile,
   verifyOtp,
 } from "../controllers/user.js";
-
+import { auth } from "../middleware/auth.js";
+import upload from "../helpers/multer.js";
 const userRouter = express.Router();
 
 //userRouter.post("/signup", signup);
@@ -35,6 +38,19 @@ userRouter.post(
   "/signin",
 
   signin
+);
+userRouter.patch(
+  "/updateUserProfile",
+  auth,
+  upload.single("itemImage"),
+
+  updateUserProfile
+);
+userRouter.get(
+  "/getUserProfile",
+  auth,
+
+  getUserProfile
 );
 
 export default userRouter;
