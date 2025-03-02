@@ -5,6 +5,7 @@ import cors from "cors";
 import { connectDB } from "./dbConnect.js";
 import userRouter from "./routes/user.js";
 import womenRouter from "./routes/women.js";
+import locationRouter from "./routes/location.js";
 
 const port = 9000;
 
@@ -24,6 +25,7 @@ app.use(cors());
 connectDB();
 app.use("/users", userRouter);
 app.use("/women", womenRouter);
+app.use("/location", locationRouter);
 app.get("/", (req, res) => {
   return res.status(200).json("Welcome to WomenSafety ! v2 ❤️");
 });
