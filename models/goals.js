@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-
 const goalSchema = new mongoose.Schema(
   {
     userId: {
@@ -19,11 +18,13 @@ const goalSchema = new mongoose.Schema(
       ],
       required: true,
     },
-    customCategory: { type: String, trim: true }, // for custom goals
+    goalName: { type: String, required: true, trim: true }, // Name of the specific goal
+    customCategory: { type: String, trim: true }, // For custom goals
     targetAmount: { type: Number, required: true },
     initialSaving: { type: Number, default: 0 },
     currentAmount: { type: Number, default: 0 },
-    remainingAmount: { type: Number, required: true }, // New field
+    remainingAmount: { type: Number, required: true },
+    targetDate: { type: Date, required: true }, // New field for goal's target date
   },
   { timestamps: true }
 );

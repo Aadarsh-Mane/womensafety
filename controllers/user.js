@@ -292,7 +292,14 @@ export const updateUserProfile = async (req, res) => {
 };
 export const createGoal = async (req, res) => {
   try {
-    const { category, customCategory, targetAmount, initialSaving } = req.body;
+    const {
+      category,
+      goalName,
+      customCategory,
+      targetAmount,
+      initialSaving,
+      targetDate,
+    } = req.body;
     const userId = req.userId; // from auth middleware
 
     const remainingAmount = targetAmount - initialSaving;
@@ -300,11 +307,13 @@ export const createGoal = async (req, res) => {
     const goal = new Goal({
       userId,
       category,
+      goalName,
       customCategory: category === "custom" ? customCategory : undefined,
       targetAmount,
       initialSaving,
       currentAmount: initialSaving,
       remainingAmount,
+      targetDate,
     });
 
     await goal.save();
@@ -338,15 +347,15 @@ export const depositToGoal = async (req, res) => {
       .json({ message: "Failed to deposit to goal", error: err.message });
   }
 };
+
 export const getGoals = async (req, res) => {
   try {
-    const { category } = req.query; // optional category filter
-    const userId = req.userId; // from auth middleware
+    const { category, goalName } = req.query; // optional filters
+    const userId = req.userId;
 
     const filter = { userId };
-    if (category) {
-      filter.category = category;
-    }
+    if (category) filter.category = category;
+    if (goalName) filter.goalName = new RegExp(goalName, "i"); // case-insensitive search
 
     const goals = await Goal.find(filter);
     res.status(200).json(goals);
