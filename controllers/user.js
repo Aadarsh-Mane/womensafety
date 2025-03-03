@@ -4,6 +4,7 @@ import User from "../models/users.js";
 import jwt from "jsonwebtoken";
 import { Readable } from "stream";
 import cloudinary from "../helpers/cloudinary.js";
+import Goal from "../models/goals.js";
 const JWT_SECRET = "vithuSafety";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
@@ -287,5 +288,71 @@ export const updateUserProfile = async (req, res) => {
   } catch (error) {
     console.error("Error updating user profile:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+export const createGoal = async (req, res) => {
+  try {
+    const { category, customCategory, targetAmount, initialSaving } = req.body;
+    const userId = req.userId; // from auth middleware
+
+    const remainingAmount = targetAmount - initialSaving;
+
+    const goal = new Goal({
+      userId,
+      category,
+      customCategory: category === "custom" ? customCategory : undefined,
+      targetAmount,
+      initialSaving,
+      currentAmount: initialSaving,
+      remainingAmount,
+    });
+
+    await goal.save();
+    res.status(201).json(goal);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to create goal", error: err.message });
+  }
+};
+
+// Controller to deposit to a goal
+export const depositToGoal = async (req, res) => {
+  try {
+    const { goalId, depositAmount } = req.body;
+    const userId = req.userId;
+
+    const goal = await Goal.findOne({ _id: goalId, userId });
+    if (!goal) {
+      return res.status(404).json({ message: "Goal not found" });
+    }
+
+    goal.currentAmount += depositAmount;
+    goal.remainingAmount = Math.max(goal.remainingAmount - depositAmount, 0);
+
+    await goal.save();
+    res.status(200).json(goal);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to deposit to goal", error: err.message });
+  }
+};
+export const getGoals = async (req, res) => {
+  try {
+    const { category } = req.query; // optional category filter
+    const userId = req.userId; // from auth middleware
+
+    const filter = { userId };
+    if (category) {
+      filter.category = category;
+    }
+
+    const goals = await Goal.find(filter);
+    res.status(200).json(goals);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to fetch goals", error: err.message });
   }
 };

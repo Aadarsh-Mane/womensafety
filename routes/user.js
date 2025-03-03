@@ -1,6 +1,9 @@
 import express from "express";
 import {
   completeSignup,
+  createGoal,
+  depositToGoal,
+  getGoals,
   getUserProfile,
   initiateSignup,
   setPin,
@@ -51,6 +54,24 @@ userRouter.get(
   auth,
 
   getUserProfile
+);
+userRouter.post(
+  "/createGoal",
+  auth,
+
+  createGoal
+);
+userRouter.post(
+  "/depositToGoal",
+  auth,
+
+  depositToGoal
+);
+userRouter.get(
+  "/getGoals",
+  auth,
+
+  getGoals
 );
 
 export default userRouter;
