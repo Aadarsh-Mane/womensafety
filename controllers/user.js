@@ -9,28 +9,6 @@ const JWT_SECRET = "vithuSafety";
 import twilio from "twilio";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
-import crypto from "crypto";
-
-const linkStore = new Map(); // Temporary store for short links
-
-// Generate a short, random token for the URL
-const generateShortLink = (url) => {
-  const token = crypto.randomBytes(6).toString("hex");
-  linkStore.set(token, url); // Store the full URL against the token
-  return `https://womensafety-1-5znp.onrender.com/short-link/${token}`;
-};
-
-// Handle short link redirection
-export const handleShortLink = (req, res) => {
-  const { token } = req.params;
-  const url = linkStore.get(token);
-
-  if (url) {
-    res.redirect(url);
-  } else {
-    res.status(404).json({ error: "Invalid or expired link" });
-  }
-};
 
 // export const signup = async (req, res) => {
 //   const { name, dob, email, mobileNumber, password, pin } = req.body;
@@ -410,19 +388,23 @@ export const sendWelcomeMessage = async (req, res) => {
     return res.status(400).json({ error: "URL is required" });
   }
 
-  const secureUrl = generateShortLink(url);
-  const messageBody = `Welcome! Your location: Latitude ${latitude}, Longitude ${longitude}. Check this out: ${secureUrl}`;
+  const messageBody = `Welcome! Your location: Latitude ${latitude}, Longitude ${longitude}. Check this out: ${url}`;
 
   try {
     const results = await Promise.all(
       phoneNumbers.map(async (phoneNumber) => {
         let formattedNumber = phoneNumber.trim();
 
+        // Add +91 only if the number doesn't already have it
         if (!formattedNumber.startsWith("+91")) {
-          formattedNumber =
-            formattedNumber.startsWith("91") && formattedNumber.length === 12
-              ? `+${formattedNumber}`
-              : `+91${formattedNumber}`;
+          if (
+            formattedNumber.startsWith("91") &&
+            formattedNumber.length === 12
+          ) {
+            formattedNumber = `+${formattedNumber}`; // Add '+' if it starts with 91 but lacks '+'
+          } else {
+            formattedNumber = `+91${formattedNumber}`; // Add '+91' for plain numbers
+          }
         }
 
         const message = await client.messages.create({
