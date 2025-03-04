@@ -6,6 +6,7 @@ import {
   getGoals,
   getUserProfile,
   initiateSignup,
+  sendWelcomeMessage,
   setPin,
   signin,
   updateUserProfile,
@@ -72,6 +73,11 @@ userRouter.get(
   auth,
 
   getGoals
+);
+userRouter.post(
+  "/sendWelcomeMessage",
+
+  sendWelcomeMessage
 );
 
 export default userRouter;

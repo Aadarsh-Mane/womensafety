@@ -6,8 +6,31 @@ import { Readable } from "stream";
 import cloudinary from "../helpers/cloudinary.js";
 import Goal from "../models/goals.js";
 const JWT_SECRET = "vithuSafety";
+import twilio from "twilio";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
+import crypto from "crypto";
+
+const linkStore = new Map(); // Temporary store for short links
+
+// Generate a short, random token for the URL
+const generateShortLink = (url) => {
+  const token = crypto.randomBytes(6).toString("hex");
+  linkStore.set(token, url); // Store the full URL against the token
+  return `https://womensafety-1-5znp.onrender.com/short-link/${token}`;
+};
+
+// Handle short link redirection
+export const handleShortLink = (req, res) => {
+  const { token } = req.params;
+  const url = linkStore.get(token);
+
+  if (url) {
+    res.redirect(url);
+  } else {
+    res.status(404).json({ error: "Invalid or expired link" });
+  }
+};
 
 // export const signup = async (req, res) => {
 //   const { name, dob, email, mobileNumber, password, pin } = req.body;
@@ -363,5 +386,58 @@ export const getGoals = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to fetch goals", error: err.message });
+  }
+};
+const TWILIO_ACCOUNT_SID = "AC04daf2f6c444bd38388d868da5987763";
+const TWILIO_AUTH_TOKEN = "88d133515326fa69bcc093762712a783";
+const TWILIO_PHONE_NUMBER = "+13134762280";
+
+const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+export const sendWelcomeMessage = async (req, res) => {
+  const { phoneNumbers, latitude, longitude, url } = req.body;
+
+  if (
+    !phoneNumbers ||
+    !Array.isArray(phoneNumbers) ||
+    phoneNumbers.length === 0
+  ) {
+    return res
+      .status(400)
+      .json({ error: "At least one phone number is required" });
+  }
+
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
+  }
+
+  const secureUrl = generateShortLink(url);
+  const messageBody = `Welcome! Your location: Latitude ${latitude}, Longitude ${longitude}. Check this out: ${secureUrl}`;
+
+  try {
+    const results = await Promise.all(
+      phoneNumbers.map(async (phoneNumber) => {
+        let formattedNumber = phoneNumber.trim();
+
+        if (!formattedNumber.startsWith("+91")) {
+          formattedNumber =
+            formattedNumber.startsWith("91") && formattedNumber.length === 12
+              ? `+${formattedNumber}`
+              : `+91${formattedNumber}`;
+        }
+
+        const message = await client.messages.create({
+          from: TWILIO_PHONE_NUMBER,
+          to: formattedNumber,
+          body: messageBody,
+        });
+
+        return { phoneNumber: formattedNumber, messageSid: message.sid };
+      })
+    );
+
+    res.status(200).json({ success: true, results });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 };
