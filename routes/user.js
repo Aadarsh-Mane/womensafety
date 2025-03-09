@@ -1,8 +1,11 @@
 import express from "express";
 import {
+  addContact,
   completeSignup,
   createGoal,
+  createIncident,
   depositToGoal,
+  getAllUsers,
   getGoals,
   getUserProfile,
   initiateSignup,
@@ -74,6 +77,19 @@ userRouter.get(
 
   getGoals
 );
+userRouter.post(
+  "/addContact",
+  auth,
+
+  addContact
+);
+userRouter.post(
+  "/createIncident",
+  auth,
+
+  createIncident
+);
+userRouter.get("/getAllUsers", getAllUsers);
 userRouter.post(
   "/sendWelcomeMessage",
 

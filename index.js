@@ -6,6 +6,7 @@ import { connectDB } from "./dbConnect.js";
 import userRouter from "./routes/user.js";
 import womenRouter from "./routes/women.js";
 import locationRouter from "./routes/location.js";
+import adminRouter from "./routes/admin.js";
 
 const port = 9000;
 
@@ -26,6 +27,7 @@ connectDB();
 app.use("/users", userRouter);
 app.use("/women", womenRouter);
 app.use("/location", locationRouter);
+app.use("/admin", adminRouter);
 app.get("/", (req, res) => {
   return res.status(200).json("Welcome to WomenSafety ! v2 ❤️");
 });

@@ -7,6 +7,7 @@ import cloudinary from "../helpers/cloudinary.js";
 import Goal from "../models/goals.js";
 const JWT_SECRET = "vithuSafety";
 import twilio from "twilio";
+import Incident from "../models/incidents.js";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
 
@@ -421,5 +422,74 @@ export const sendWelcomeMessage = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+  }
+};
+export const addContact = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { name, mobileNumber, email } = req.body;
+
+    if (!name || !mobileNumber) {
+      return res
+        .status(400)
+        .json({ message: "Name and mobile number are required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.contacts.push({ name, mobileNumber, email });
+    await user.save();
+
+    res
+      .status(200)
+      .json({ message: "Contact added successfully", contacts: user.contacts });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password -pin -otp");
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const createIncident = async (req, res) => {
+  try {
+    const { type, location, status, priority } = req.body;
+    const reportedBy = req.userId;
+
+    if (!type || !location || !priority) {
+      return res
+        .status(400)
+        .json({ message: "Type, location, and priority are required." });
+    }
+
+    const user = await User.findById(reportedBy);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const newIncident = new Incident({
+      type,
+      reportedBy,
+      reportedByName: user.name, // Save user's name
+      location,
+      status: status || "Open",
+      priority,
+    });
+
+    await newIncident.save();
+    res.status(201).json({
+      message: "Incident reported successfully",
+      incident: newIncident,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

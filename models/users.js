@@ -20,6 +20,13 @@ const userSchema = new mongoose.Schema(
       expiresAt: Date,
     },
     isOtpVerified: { type: Boolean, default: false },
+    contacts: [
+      {
+        name: { type: String, required: true },
+        mobileNumber: { type: String, required: true },
+        email: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );
