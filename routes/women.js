@@ -1,11 +1,17 @@
 import express from "express";
 import {
+  addAlert,
+  addComment,
   addPost,
+  getComments,
+  getLikes,
   getPosts,
   getUserPosts,
+  toggleLike,
 } from "../controllers/womenController.js";
 import upload from "../helpers/multer.js";
 import { auth } from "../middleware/auth.js";
+import { Auth } from "googleapis";
 
 const womenRouter = express.Router();
 
@@ -31,5 +37,11 @@ womenRouter.get(
 
   getPosts
 );
+
+womenRouter.post("/comment", auth, addComment);
+womenRouter.post("/like", auth, toggleLike);
+womenRouter.get("/:communityId/comments", getComments);
+womenRouter.get("/:communityId/likes", getLikes);
+womenRouter.post("/addAlert", auth, addAlert);
 
 export default womenRouter;

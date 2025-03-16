@@ -1,3 +1,4 @@
+import Alert from "../models/alerts.js";
 import Incident from "../models/incidents.js";
 import User from "../models/users.js";
 
@@ -106,5 +107,151 @@ export const getRecentIncidents = async (req, res) => {
     res.status(200).json(formattedIncidents);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const updateIncidentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["Active", "Pending", "Resolved"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const incident = await Incident.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    res.status(200).json(incident);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const updateIncidentPriority = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { priority } = req.body;
+
+    if (!["Low", "Medium", "High"].includes(priority)) {
+      return res.status(400).json({ message: "Invalid priority value" });
+    }
+
+    const incident = await Incident.findByIdAndUpdate(
+      id,
+      { priority },
+      { new: true }
+    );
+
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    res.status(200).json(incident);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete Incident
+export const deleteIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const incident = await Incident.findByIdAndDelete(id);
+
+    if (!incident) {
+      return res.status(404).json({ message: "Incident not found" });
+    }
+
+    res.status(200).json({ message: "Incident deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const updateAlertStatus = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const { status } = req.body;
+    console.log(alertId);
+
+    // Validate status
+    const validStatuses = ["Active", "Responding", "Resolved"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // Find and update alert
+    const updatedAlert = await Alert.findByIdAndUpdate(
+      alertId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedAlert) {
+      return res.status(404).json({ message: "Alert not found" });
+    }
+
+    res.status(200).json({
+      message: "Alert status updated successfully",
+      alert: updatedAlert,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+export const getAlertsByStatus = async (req, res) => {
+  try {
+    const { status } = req.query; // Get status from query params
+
+    // Validate status
+    const validStatuses = ["Active", "Responding", "Resolved"];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // Fetch alerts (filter by status if provided)
+    const filters = status ? { status } : {}; // If no status, return all alerts
+    const alerts = await Alert.find(filters).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Alerts fetched successfully",
+      alerts,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching alerts:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+export const getAlertCounts = async (req, res) => {
+  try {
+    const counts = await Alert.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Convert array to object { Active: X, Responding: Y, Resolved: Z }
+    const statusCounts = { Active: 0, Responding: 0, Resolved: 0 };
+    counts.forEach(({ _id, count }) => {
+      statusCounts[_id] = count;
+    });
+
+    res.status(200).json({
+      message: "Alert counts fetched successfully",
+      counts: statusCounts,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching alert counts:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 };

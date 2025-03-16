@@ -7,6 +7,7 @@ import {
   depositToGoal,
   getAllUsers,
   getGoals,
+  getMyIncident,
   getUserProfile,
   initiateSignup,
   sendWelcomeMessage,
@@ -86,14 +87,19 @@ userRouter.post(
 userRouter.post(
   "/createIncident",
   auth,
-
+  upload.fields([
+    { name: "incidentImage", maxCount: 1 },
+    { name: "incidentAudio", maxCount: 1 },
+  ]),
   createIncident
 );
+
 userRouter.get("/getAllUsers", getAllUsers);
 userRouter.post(
   "/sendWelcomeMessage",
 
   sendWelcomeMessage
 );
+userRouter.get("/getMyIncident", auth, getMyIncident);
 
 export default userRouter;

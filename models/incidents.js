@@ -10,14 +10,17 @@ const incidentSchema = new mongoose.Schema(
       required: true,
     },
     reportedByName: { type: String, required: true }, // Save the user's name
-    location: { type: String, required: true },
+    location: { type: String },
     time: { type: Date, default: Date.now },
     status: {
       type: String,
       enum: ["Active", "Pending", "Resolved"],
-      default: "Open",
+      default: "Active",
     },
-    priority: { type: String, enum: ["Low", "Medium", "High"], required: true },
+    priority: { type: String, enum: ["Low", "Medium", "High"], default: "Low" },
+    imageUrl: { type: String },
+    audioUrl: { type: String },
+    description: { type: String },
   },
   { timestamps: true }
 );

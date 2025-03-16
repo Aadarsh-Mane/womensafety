@@ -8,6 +8,7 @@ import Goal from "../models/goals.js";
 const JWT_SECRET = "vithuSafety";
 import twilio from "twilio";
 import Incident from "../models/incidents.js";
+import { uploadToCloudinary } from "../utils/uploadCloudinary.js";
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
 
@@ -461,14 +462,29 @@ export const getAllUsers = async (req, res) => {
 
 export const createIncident = async (req, res) => {
   try {
-    const { type, location, status, priority } = req.body;
+    const { type, location, status, priority, description } = req.body;
     const reportedBy = req.userId;
 
-    if (!type || !location || !priority) {
-      return res
-        .status(400)
-        .json({ message: "Type, location, and priority are required." });
+    const incidentImage = req.files?.incidentImage?.[0];
+    // const incidentAudio = req.files?.incidentAudio?.[0];
+
+    console.log("Request Body:", req.body);
+    console.log("Incident Image:", incidentImage);
+    // console.log("Incident Audio:", incidentAudio);
+
+    let imageUrl = null;
+    let audioUrl = null;
+
+    if (incidentImage) {
+      imageUrl = await uploadToCloudinary(incidentImage.buffer, "incidents");
     }
+
+    // if (incidentAudio) {
+    //   audioUrl = await uploadToCloudinary(incidentAudio.buffer, "audio");
+    // }
+
+    console.log("Image URL:", imageUrl);
+    // console.log("Audio URL:", audioUrl);
 
     const user = await User.findById(reportedBy);
     if (!user) {
@@ -478,10 +494,13 @@ export const createIncident = async (req, res) => {
     const newIncident = new Incident({
       type,
       reportedBy,
-      reportedByName: user.name, // Save user's name
+      reportedByName: user.name,
       location,
-      status: status || "Open",
+      status: status || "Active",
       priority,
+      imageUrl,
+      // audioUrl,
+      description,
     });
 
     await newIncident.save();
@@ -491,5 +510,25 @@ export const createIncident = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export const getMyIncident = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Fetch incidents where reportedBy matches userId
+    const incidents = await Incident.find({ reportedBy: userId });
+
+    if (!incidents.length) {
+      return res
+        .status(404)
+        .json({ message: "No incidents found for this user." });
+    }
+
+    res.status(200).json(incidents);
+  } catch (error) {
+    console.error("Error fetching user incidents:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 };
