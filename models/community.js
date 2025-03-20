@@ -23,6 +23,8 @@ const communitySchema = new mongoose.Schema(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+    tags: [{ type: String }], // Array of tags
+
     likes: { type: Number, default: 0 }, // Like counter
     likedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Track users who liked
   },

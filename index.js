@@ -1,5 +1,4 @@
 import express from "express";
-import { Server } from "socket.io";
 import http from "http";
 import cors from "cors";
 import { connectDB } from "./dbConnect.js";

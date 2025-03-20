@@ -5,9 +5,8 @@ import User from "../models/users.js";
 import Alert from "../models/alerts.js";
 
 export const addPost = async (req, res) => {
-  // router.post('/add-community', upload.single('image'), async (req, res) => {
   try {
-    const { title, description, location } = req.body;
+    const { title, description, location, tags } = req.body; // Extract tags
     console.log(req.body);
     const userId = req.userId; // Extract userId from req.userId
     console.log("userId", userId);
@@ -37,6 +36,7 @@ export const addPost = async (req, res) => {
       image: imageUrl,
       description,
       location,
+      tags: tags ? tags.split(",").map((tag) => tag.trim()) : [], // Ensure tags are an array
     });
 
     await newCommunity.save();
@@ -48,6 +48,7 @@ export const addPost = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 export const getPosts = async (req, res) => {
   try {
     const posts = await Community.find().sort({ createdAt: -1 });
