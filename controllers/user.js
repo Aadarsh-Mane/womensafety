@@ -540,25 +540,26 @@ export const createIncident = async (req, res) => {
     const reportedBy = req.userId;
 
     const incidentImage = req.files?.incidentImage?.[0];
-    // const incidentAudio = req.files?.incidentAudio?.[0];
-
-    console.log("Request Body:", req.body);
-    console.log("Incident Image:", incidentImage);
-    // console.log("Incident Audio:", incidentAudio);
+    const incidentAudio = req.files?.incidentAudio?.[0];
 
     let imageUrl = null;
     let audioUrl = null;
 
+    // Upload image with image specific settings
     if (incidentImage) {
-      imageUrl = await uploadToCloudinary(incidentImage.buffer, "incidents");
+      imageUrl = await uploadToCloudinary(incidentImage.buffer, {
+        folder: "incidents/images",
+        resource_type: "image",
+      });
     }
 
-    // if (incidentAudio) {
-    //   audioUrl = await uploadToCloudinary(incidentAudio.buffer, "audio");
-    // }
-
-    console.log("Image URL:", imageUrl);
-    // console.log("Audio URL:", audioUrl);
+    // Upload audio with different settings
+    if (incidentAudio) {
+      audioUrl = await uploadToCloudinary(incidentAudio.buffer, {
+        folder: "incidents/audio",
+        resource_type: "auto", // Let Cloudinary detect the type
+      });
+    }
 
     const user = await User.findById(reportedBy);
     if (!user) {
@@ -573,7 +574,7 @@ export const createIncident = async (req, res) => {
       status: status || "Active",
       priority,
       imageUrl,
-      // audioUrl,
+      audioUrl, // Add audio URL to the model
       description,
     });
 
