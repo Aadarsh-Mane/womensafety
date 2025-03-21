@@ -11,6 +11,7 @@ import {
   getUserProfile,
   initiateSignup,
   sendWelcomeMessage,
+  sendWelcomeMessage1,
   setPin,
   signin,
   updateUserProfile,
@@ -96,6 +97,7 @@ userRouter.post(
 
 userRouter.get("/getAllUsers", getAllUsers);
 userRouter.post("/sendWelcomeMessage", auth, sendWelcomeMessage);
+userRouter.post("/sendWelcomeMessage1", auth, sendWelcomeMessage1);
 userRouter.get("/getMyIncident", auth, getMyIncident);
 
 export default userRouter;

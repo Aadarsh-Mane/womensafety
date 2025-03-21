@@ -627,3 +627,148 @@ export const getMyIncident = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+export const sendWelcomeMessage1 = async (req, res) => {
+  // Verify Fast2SMS credentials are available
+  if (!FAST2SMS_API_KEY) {
+    console.error("Missing Fast2SMS API Key");
+    return res.status(500).json({
+      error: "SMS service unavailable. Please check server configuration.",
+    });
+  }
+
+  const { latitude, longitude, url, deviceName, battery } = req.body;
+  const userId = req.userId; // Getting userId from request
+
+  if (!userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
+  }
+
+  try {
+    // Fetch the user's contacts from the database
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const contacts = user.contacts;
+
+    if (!contacts || contacts.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No emergency contacts found for this user" });
+    }
+
+    // Extract phone numbers from contacts
+    const phoneNumbers = contacts.map((contact) => contact.mobileNumber);
+
+    const messageBody = `Welcome! Your location: Latitude ${latitude}, Longitude ${longitude}. Check this out: ${url}`;
+
+    const results = await Promise.all(
+      phoneNumbers.map(async (phoneNumber) => {
+        let formattedNumber = phoneNumber.trim();
+
+        // Remove any '+' or country code for Fast2SMS (expects only 10 digits)
+        if (formattedNumber.startsWith("+91")) {
+          formattedNumber = formattedNumber.substring(3);
+        } else if (
+          formattedNumber.startsWith("91") &&
+          formattedNumber.length === 12
+        ) {
+          formattedNumber = formattedNumber.substring(2);
+        }
+
+        // Ensure we have a valid 10-digit Indian phone number
+        if (!/^\d{10}$/.test(formattedNumber)) {
+          return {
+            phoneNumber,
+            formattedNumber,
+            error: "Invalid phone number format. Must be 10 digits.",
+            status: "failed",
+          };
+        }
+
+        try {
+          const response = await axios.post(
+            "https://www.fast2sms.com/dev/bulkV2",
+            {
+              route: "q", // Quick SMS route
+              message: messageBody,
+              language: "english",
+              flash: 0,
+              numbers: formattedNumber,
+            },
+            {
+              headers: {
+                Authorization: FAST2SMS_API_KEY,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          // Fast2SMS response structure
+          if (response.data.return === true) {
+            return {
+              phoneNumber,
+              formattedNumber,
+              messageId: response.data.request_id || "N/A",
+              status: "sent",
+              responseData: response.data,
+            };
+          } else {
+            return {
+              phoneNumber,
+              formattedNumber,
+              error: response.data.message || "Unknown error",
+              status: "failed",
+              responseData: response.data,
+            };
+          }
+        } catch (messageError) {
+          console.error(
+            `Error sending message to ${formattedNumber}:`,
+            messageError.response?.data || messageError.message
+          );
+          return {
+            phoneNumber,
+            formattedNumber,
+            error: messageError.response?.data?.message || messageError.message,
+            status: "failed",
+          };
+        }
+      })
+    );
+
+    // Save the welcome message data to the database
+    const welcomeMessageData = new SosEmergency({
+      user: userId,
+      deviceInfo: {
+        deviceName: deviceName || "Unknown",
+        battery: battery || null,
+      },
+      location: {
+        latitude,
+        longitude,
+      },
+      url,
+      recipients: results.map((result) => ({
+        phoneNumber: result.phoneNumber,
+        formattedNumber: result.formattedNumber,
+        status: result.status,
+        messageId: result.messageId,
+        error: result.error,
+        responseData: result.responseData,
+      })),
+    });
+
+    await welcomeMessageData.save();
+    res.json(welcomeMessageData);
+  } catch (error) {
+    console.error("Unexpected error in sendWelcomeMessage:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
