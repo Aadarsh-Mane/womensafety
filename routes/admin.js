@@ -11,6 +11,7 @@ import {
   updateIncidentStatus,
 } from "../controllers/adminController.js";
 import { getAllUsers } from "../controllers/user.js";
+import { findEmergencyServices } from "../controllers/emergencyController.js";
 
 const adminRouter = express.Router();
 
@@ -25,5 +26,6 @@ adminRouter.delete("/deleteIncident", deleteIncident);
 adminRouter.patch("/updateAlertStatus/:alertId", updateAlertStatus);
 adminRouter.get("/getAlertsByStatus", getAlertsByStatus);
 adminRouter.get("/getAlertCounts", getAlertCounts);
+adminRouter.post("/findEmergencyServices", findEmergencyServices);
 
 export default adminRouter;

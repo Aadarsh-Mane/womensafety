@@ -6,11 +6,21 @@ import { Readable } from "stream";
 import cloudinary from "../helpers/cloudinary.js";
 import Goal from "../models/goals.js";
 const JWT_SECRET = "vithuSafety";
-import twilio from "twilio";
 import Incident from "../models/incidents.js";
 import { uploadToCloudinary } from "../utils/uploadCloudinary.js";
+import dotenv from "dotenv";
+import twilio from "twilio";
+
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
+dotenv.config();
+
+// Then create a separate file for your Twilio service:
+// twilioService.js
+
+const TWILIO_ACCOUNT_SID = "AC35d86e0d9c60d2eb91c76053c7c863e1";
+const TWILIO_AUTH_TOKEN = "a0d4dc369bcf38fa486a1d6d44685b0c";
+const TWILIO_PHONE_NUMBER = "+14152149378";
 
 // export const signup = async (req, res) => {
 //   const { name, dob, email, mobileNumber, password, pin } = req.body;
@@ -368,12 +378,16 @@ export const getGoals = async (req, res) => {
       .json({ message: "Failed to fetch goals", error: err.message });
   }
 };
-const TWILIO_ACCOUNT_SID = "AC04daf2f6c444bd38388d868da5987763";
-const TWILIO_AUTH_TOKEN = "88d133515326fa69bcc093762712a783";
-const TWILIO_PHONE_NUMBER = "+13134762280";
 
-const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 export const sendWelcomeMessage = async (req, res) => {
+  // Verify Fast2SMS credentials are available
+  if (!FAST2SMS_API_KEY) {
+    console.error("Missing Fast2SMS API Key");
+    return res.status(500).json({
+      error: "SMS service unavailable. Please check server configuration.",
+    });
+  }
+
   const { phoneNumbers, latitude, longitude, url } = req.body;
 
   if (
@@ -397,31 +411,91 @@ export const sendWelcomeMessage = async (req, res) => {
       phoneNumbers.map(async (phoneNumber) => {
         let formattedNumber = phoneNumber.trim();
 
-        // Add +91 only if the number doesn't already have it
-        if (!formattedNumber.startsWith("+91")) {
-          if (
-            formattedNumber.startsWith("91") &&
-            formattedNumber.length === 12
-          ) {
-            formattedNumber = `+${formattedNumber}`; // Add '+' if it starts with 91 but lacks '+'
-          } else {
-            formattedNumber = `+91${formattedNumber}`; // Add '+91' for plain numbers
-          }
+        // Remove any '+' or country code for Fast2SMS (expects only 10 digits)
+        if (formattedNumber.startsWith("+91")) {
+          formattedNumber = formattedNumber.substring(3);
+        } else if (
+          formattedNumber.startsWith("91") &&
+          formattedNumber.length === 12
+        ) {
+          formattedNumber = formattedNumber.substring(2);
         }
 
-        const message = await client.messages.create({
-          from: TWILIO_PHONE_NUMBER,
-          to: formattedNumber,
-          body: messageBody,
-        });
+        // Ensure we have a valid 10-digit Indian phone number
+        if (!/^\d{10}$/.test(formattedNumber)) {
+          return {
+            phoneNumber,
+            error: "Invalid phone number format. Must be 10 digits.",
+            status: "failed",
+          };
+        }
 
-        return { phoneNumber: formattedNumber, messageSid: message.sid };
+        try {
+          const response = await axios.post(
+            "https://www.fast2sms.com/dev/bulkV2",
+            {
+              route: "q", // Quick SMS route
+              message: messageBody,
+              language: "english",
+              flash: 0,
+              numbers: formattedNumber,
+            },
+            {
+              headers: {
+                Authorization: FAST2SMS_API_KEY,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          // Fast2SMS response structure is different from Twilio
+          if (response.data.return === true) {
+            return {
+              phoneNumber: formattedNumber,
+              messageId: response.data.request_id || "N/A",
+              status: "sent",
+              response: response.data,
+            };
+          } else {
+            return {
+              phoneNumber: formattedNumber,
+              error: response.data.message || "Unknown error",
+              status: "failed",
+              response: response.data,
+            };
+          }
+        } catch (messageError) {
+          console.error(
+            `Error sending message to ${formattedNumber}:`,
+            messageError.response?.data || messageError.message
+          );
+          return {
+            phoneNumber: formattedNumber,
+            error: messageError.response?.data?.message || messageError.message,
+            status: "failed",
+          };
+        }
       })
     );
 
-    res.status(200).json({ success: true, results });
+    // Check if any messages were sent successfully
+    const anySuccess = results.some((result) => result.status === "sent");
+
+    if (anySuccess) {
+      res.status(200).json({
+        success: true,
+        results,
+        partialFailure: results.some((result) => result.status === "failed"),
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: "Failed to send any messages",
+        results,
+      });
+    }
   } catch (error) {
-    console.error(error);
+    console.error("Unexpected error in sendWelcomeMessage:", error);
     res.status(500).json({ error: error.message });
   }
 };
