@@ -10,6 +10,7 @@ import Incident from "../models/incidents.js";
 import { uploadToCloudinary } from "../utils/uploadCloudinary.js";
 import dotenv from "dotenv";
 import twilio from "twilio";
+import SosEmergency from "../models/helps.js";
 
 const FAST2SMS_API_KEY =
   "WdZ9ew6msGSY2anqctkj437lUgC5b1oKIzf0p8DxrPTABJMOFRdbD5sVpwNWKqLYPBuUJh34Qg9z0For";
@@ -388,7 +389,13 @@ export const sendWelcomeMessage = async (req, res) => {
     });
   }
 
-  const { phoneNumbers, latitude, longitude, url } = req.body;
+  const { phoneNumbers, latitude, longitude, url, deviceName, battery } =
+    req.body;
+  const userId = req.userId; // Getting userId from request
+
+  if (!userId) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
 
   if (
     !phoneNumbers ||
@@ -425,6 +432,7 @@ export const sendWelcomeMessage = async (req, res) => {
         if (!/^\d{10}$/.test(formattedNumber)) {
           return {
             phoneNumber,
+            formattedNumber,
             error: "Invalid phone number format. Must be 10 digits.",
             status: "failed",
           };
@@ -448,20 +456,22 @@ export const sendWelcomeMessage = async (req, res) => {
             }
           );
 
-          // Fast2SMS response structure is different from Twilio
+          // Fast2SMS response structure
           if (response.data.return === true) {
             return {
-              phoneNumber: formattedNumber,
+              phoneNumber,
+              formattedNumber,
               messageId: response.data.request_id || "N/A",
               status: "sent",
-              response: response.data,
+              responseData: response.data,
             };
           } else {
             return {
-              phoneNumber: formattedNumber,
+              phoneNumber,
+              formattedNumber,
               error: response.data.message || "Unknown error",
               status: "failed",
-              response: response.data,
+              responseData: response.data,
             };
           }
         } catch (messageError) {
@@ -470,7 +480,8 @@ export const sendWelcomeMessage = async (req, res) => {
             messageError.response?.data || messageError.message
           );
           return {
-            phoneNumber: formattedNumber,
+            phoneNumber,
+            formattedNumber,
             error: messageError.response?.data?.message || messageError.message,
             status: "failed",
           };
@@ -478,27 +489,36 @@ export const sendWelcomeMessage = async (req, res) => {
       })
     );
 
-    // Check if any messages were sent successfully
-    const anySuccess = results.some((result) => result.status === "sent");
+    // Save the welcome message data to the database
+    const welcomeMessageData = new SosEmergency({
+      user: userId,
+      deviceInfo: {
+        deviceName: deviceName || "Unknown",
+        battery: battery || null,
+      },
+      location: {
+        latitude,
+        longitude,
+      },
+      url,
+      recipients: results.map((result) => ({
+        phoneNumber: result.phoneNumber,
+        formattedNumber: result.formattedNumber,
+        status: result.status,
+        messageId: result.messageId,
+        error: result.error,
+        responseData: result.responseData,
+      })),
+    });
 
-    if (anySuccess) {
-      res.status(200).json({
-        success: true,
-        results,
-        partialFailure: results.some((result) => result.status === "failed"),
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: "Failed to send any messages",
-        results,
-      });
-    }
+    await welcomeMessageData.save();
+    res.json(welcomeMessageData);
   } catch (error) {
     console.error("Unexpected error in sendWelcomeMessage:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 export const addContact = async (req, res) => {
   try {
     const userId = req.userId;

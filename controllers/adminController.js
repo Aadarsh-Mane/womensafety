@@ -1,4 +1,5 @@
 import Alert from "../models/alerts.js";
+import SosEmergency from "../models/helps.js";
 import Incident from "../models/incidents.js";
 import User from "../models/users.js";
 
@@ -253,5 +254,86 @@ export const getAlertCounts = async (req, res) => {
   } catch (error) {
     console.error("❌ Error fetching alert counts:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+export const listEmergencies = async (req, res) => {
+  try {
+    const { userId, startDate, endDate, limit = 10, page = 1 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build query filters
+    const query = {};
+
+    // Filter by user if provided
+    if (userId) {
+      query.user = userId;
+    }
+
+    // Filter by date range if provided
+    if (startDate || endDate) {
+      query.createdAt = {};
+
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Get total count for pagination
+    const total = await SosEmergency.countDocuments(query);
+
+    // Get emergencies with pagination
+    const emergencies = await SosEmergency.find(query)
+      .populate("user", "name email phone") // Populate user data
+      .sort({ createdAt: -1 }) // Sort by most recent first
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Calculate metrics
+    const sentMessages = emergencies.reduce((count, emergency) => {
+      return (
+        count + emergency.recipients.filter((r) => r.status === "sent").length
+      );
+    }, 0);
+
+    const failedMessages = emergencies.reduce((count, emergency) => {
+      return (
+        count + emergency.recipients.filter((r) => r.status === "failed").length
+      );
+    }, 0);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        emergencies,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / parseInt(limit)),
+        },
+        metrics: {
+          totalEmergencies: total,
+          sentMessages,
+          failedMessages,
+          successRate:
+            total > 0
+              ? (
+                  (sentMessages / (sentMessages + failedMessages)) *
+                  100
+                ).toFixed(2) + "%"
+              : "0%",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error in listEmergencies:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "An unexpected error occurred",
+    });
   }
 };
